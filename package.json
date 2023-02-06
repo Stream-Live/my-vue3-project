@@ -45,7 +45,9 @@
   "dependencies": {
     "axios": "^1.2.1",
     "file-loader": "^6.2.0",
+    "gsap": "^3.11.4",
     "lodash-es": "^4.17.21",
+    "my-threejs-utils": "^1.0.34",
     "pinia": "^2.0.26",
     "three": "^0.145.0",
     "vue": "^3.2.45",

@@ -2,7 +2,7 @@
  * @Author: Wjh
  * @Date: 2022-12-04 21:28:12
  * @LastEditors: Wjh
- * @LastEditTime: 2022-12-29 13:38:02
+ * @LastEditTime: 2023-02-06 17:28:40
  * @FilePath: \my-vue3-project\src\router\index.ts
  * @Description:
  *
@@ -22,10 +22,10 @@ const router = createRouter({
       path: "/show",
       component: () => import("../views/Show.vue"),
     },
-    // {
-    //   path: "/arco",
-    //   component: () => import("../views/ArcoTest.vue"),
-    // },
+    {
+      path: "/funcs",
+      component: () => import("../views/AboutView.vue"),
+    },
   ],
 });
 
