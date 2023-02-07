@@ -2,7 +2,7 @@
  * @Author: Wjh
  * @Date: 2022-12-04 21:28:12
  * @LastEditors: Wjh
- * @LastEditTime: 2023-02-06 17:28:40
+ * @LastEditTime: 2023-02-07 09:51:15
  * @FilePath: \my-vue3-project\src\router\index.ts
  * @Description:
  *
@@ -16,7 +16,7 @@ const router = createRouter({
   routes: [
     {
       path: "/",
-      component: () => import("../views/AboutView.vue"),
+      component: () => import("../views/Exhibition.vue"),
     },
     {
       path: "/show",

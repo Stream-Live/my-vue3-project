@@ -16,10 +16,12 @@ import {
   ToggleVirtualByEdgesGeometry,
   ToggleVirtualByWireframe,
   CreateFence,
-  computeLabelPosition
+  computeLabelPosition,
+  CreateFlywire,
+  getGradientColors,
+  CreateWaterSpout
 } from 'my-threejs-utils'
 import gsap from 'gsap'
-
 
 export default class Floor {
   private renderer: THREE.WebGLRenderer;
@@ -69,6 +71,8 @@ export default class Floor {
     this.initScene();
 
     this.render();
+
+    // new Measure(this.renderer, this.scene, this.camera, this.controls).open();
   }
   async initScene() {
 
@@ -108,6 +112,84 @@ export default class Floor {
     this.addFence();
 
     this.addLabelMove();
+
+    this.addFlywire();
+
+    this.addGradientColors();
+
+    this.addWaterspout();
+  }
+
+  // 添加水柱
+  addWaterspout(){
+
+    let obj = CreateWaterSpout({
+      length: 10
+    });
+    this.scene.add(obj.group);
+    obj.group.position.set(50, 10, 10);
+    obj.start();
+  }
+
+  // 颜色的线性插值
+  addGradientColors(){
+
+    let box = new THREE.Mesh(
+      new THREE.BoxGeometry(5,5,5),
+      new THREE.MeshBasicMaterial({color: new THREE.Color("#A4958E")})
+    );
+    box.position.set(0,10,40)
+    this.scene.add(box)
+    console.log(box);
+    
+    
+    let c1 = "#A4958E";
+    let c2 = "#111D3E";
+    let array = getGradientColors(c1, c2, 100, 1);
+
+    let param = {
+      delta: 0,
+    };
+    gsap.to(param, {
+      delta: 99,
+      duration: 3,
+      yoyo: true,
+      repeat: -1,
+      onUpdate: () => {
+        let i = Math.floor(param.delta);
+
+        let color = array[i];
+
+        box.material.color = new THREE.Color(color);
+      },
+    });
+  }
+
+  // 添加飞线
+  addFlywire(){
+
+    let start = new THREE.Vector3(0,0,20),
+      end = new THREE.Vector3(50,0,20),
+      pointY = 0,
+      height = start.distanceTo(end) / 5;
+  
+    let points = [
+      {x: start.x, y: pointY, z: start.z},
+      // 三等分点
+      {x: (end.x + 2 * start.x) / 3, y: pointY + height, z: (end.z + 2 * start.z) / 3},
+      {x: (2 * end.x + start.x) / 3, y: pointY + height, z: (2 * end.z + start.z) / 3},
+      // 二等分点
+      // {x: (start.x + end.x) / 2, y: pointY + height, z: (start.z + end.z) / 2},
+      {x: end.x, y: pointY, z: end.z},
+    ];
+
+    
+    let obj = CreateFlywire({
+      points,
+      pointSize: 5,
+    })
+    this.scene.add(obj.points);
+    obj.start();
   }
 
   // 标签撞墙自动移位
@@ -181,6 +263,7 @@ export default class Floor {
         new THREE.ShapeGeometry(shape),
         new THREE.MeshLambertMaterial({ color: 0x00ffff, side: THREE.DoubleSide })
       );
+      plane.position.y = 0.5;
       plane.rotateX(Math.PI * 0.5);
       this.scene.add(plane);
 
