@@ -2,7 +2,7 @@
  * @Author: Wjh
  * @Date: 2022-12-04 21:28:12
  * @LastEditors: Wjh
- * @LastEditTime: 2023-01-03 09:53:25
+ * @LastEditTime: 2023-02-08 14:49:32
  * @FilePath: \my-vue3-project\vite.config.ts
  * @Description:
  *
@@ -25,9 +25,9 @@ export default defineConfig({
   },
   assetsInclude: ["**/*.glb", "**/*.hdr", "**/*.gltf"],
   preview: {
-    port: 8082,
+    port: 8083,
   },
   server: {
-    port: 8082,
+    port: 8083,
   },
 });

@@ -525,7 +525,7 @@ export default class Floor {
     })
     animation.start();
 
-    // this.scene.add(animation.line);
+    this.scene.add(animation.line);
   }
 
 

@@ -2,7 +2,7 @@
  * @Author: Wjh
  * @Date: 2022-12-08 20:27:19
  * @LastEditors: Wjh
- * @LastEditTime: 2023-01-30 11:37:57
+ * @LastEditTime: 2023-02-08 15:44:48
  * @FilePath: \my-vue3-project\src\service\index.ts
  * @Description:
  *
@@ -442,9 +442,7 @@ export default class Test {
       {
         let meshList: Array<THREE.Mesh> = [];
         let dragControls: DragControls;
-        let curPosition = new THREE.Vector3(10, 10, 10);
         let boxColor = new THREE.Color("#0000ff");
-        let addColor = new THREE.Color("#ffff00");
         let curvePath = new THREE.CurvePath();
         let line: THREE.Line | null;
 
@@ -454,16 +452,15 @@ export default class Test {
 
         let dragend = (event: any) => {
           this.controls.enabled = true;
+        };
 
-          curPosition.copy(event.object.position);
-          console.log(meshList.map((item) => item.position));
-
+        let drag = () => {
           // 显示线条的时候更新线条
           if (line) {
-            const points = curvePath.getPoints(50) as THREE.Vector3[];
+            const points = curvePath.getPoints(50) as Array<THREE.Vector3>;
             line.geometry.setFromPoints(points);
           }
-        };
+        }
 
         const rightclick = (e: any) => {
           // 右击新增
@@ -495,6 +492,7 @@ export default class Test {
           );
           dragControls.addEventListener("dragstart", dragstart);
           dragControls.addEventListener("dragend", dragend);
+          dragControls.addEventListener("drag", drag);
         };
         const end = () => {
           meshList.forEach((item) => item.removeFromParent());
@@ -503,6 +501,7 @@ export default class Test {
 
           dragControls.removeEventListener("dragstart", dragstart);
           dragControls.removeEventListener("dragend", dragend);
+          dragControls.removeEventListener("drag", drag);
           dragControls.dispose();
         };
 
