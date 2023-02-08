@@ -2,7 +2,7 @@
  * @Author: Wjh
  * @Date: 2022-12-08 20:27:19
  * @LastEditors: Wjh
- * @LastEditTime: 2023-02-08 15:44:48
+ * @LastEditTime: 2023-02-08 17:24:04
  * @FilePath: \my-vue3-project\src\service\index.ts
  * @Description:
  *
@@ -452,6 +452,9 @@ export default class Test {
 
         let dragend = (event: any) => {
           this.controls.enabled = true;
+          
+          console.log(meshList.map(item => item.position));
+          
         };
 
         let drag = () => {
@@ -462,8 +465,8 @@ export default class Test {
           }
         }
 
+        // 右击新增
         const rightclick = (e: any) => {
-          // 右击新增
           if (e.button == 2) {
 
             let box = new THREE.Mesh(
@@ -477,6 +480,20 @@ export default class Test {
 
             this.scene.add(box);
             meshList.push(box);
+            console.log(meshList.map(item => item.position));
+
+            // 添加一条线
+            let len = meshList.length;
+            
+            if(len > 1){
+              let p1 = meshList[len-2].position,
+                p2 = meshList[len-1].position;
+              
+              const lineCurve = new THREE.LineCurve3(p1, p2);
+              curvePath.add(lineCurve);
+              const points = curvePath.getPoints(50) as Array<THREE.Vector3>;
+              line!.geometry.setFromPoints(points);
+            }
           }
         };
 
@@ -493,6 +510,13 @@ export default class Test {
           dragControls.addEventListener("dragstart", dragstart);
           dragControls.addEventListener("dragend", dragend);
           dragControls.addEventListener("drag", drag);
+          
+          curvePath = new THREE.CurvePath();
+          line = new THREE.Line(
+            new THREE.BufferGeometry(),
+            new THREE.LineBasicMaterial({ color: 0xff0000 })
+          );;
+          this.scene.add(line);
         };
         const end = () => {
           meshList.forEach((item) => item.removeFromParent());
@@ -503,7 +527,11 @@ export default class Test {
           dragControls.removeEventListener("dragend", dragend);
           dragControls.removeEventListener("drag", drag);
           dragControls.dispose();
+
+          line?.removeFromParent();
+          line?.clear();
         };
+
 
         let line_switch_btn = document.createElement("button");
         line_switch_btn.innerHTML = "开始拾取路径点";
@@ -518,35 +546,9 @@ export default class Test {
           }
         };
 
-        let line_connect_btn = document.createElement("button");
-        line_connect_btn.innerHTML = "显示连线";
-        utils_div.append(line_connect_btn);
-        line_connect_btn.onclick = () => {
-          if (line_connect_btn.innerHTML === "显示连线") {
-            line_connect_btn.innerHTML = "隐藏连线";
-
-            curvePath = new THREE.CurvePath();
-            for (let i = 0; i < meshList.length - 1; i++) {
-              let p1 = meshList[i].position,
-                p2 = meshList[(i + 1) % meshList.length].position;
-              const lineCurve = new THREE.LineCurve3(p1, p2);
-              curvePath.add(lineCurve);
-            }
-            const points = curvePath.getPoints(50) as THREE.Vector3[];
-            line = new THREE.Line(
-              new THREE.BufferGeometry().setFromPoints(points),
-              new THREE.LineBasicMaterial({ color: 0xff0000 })
-            );
-            this.scene.add(line);
-          } else {
-            line_connect_btn.innerHTML = "显示连线";
-            line?.removeFromParent();
-            line = null;
-          }
-        };
-
+        // 根据点数组添加路径
         const addPath = (points: Array<{x: number, y: number, z: number}>) => {
-
+          line_switch_btn.innerHTML = "结束拾取路径点";
           for(let item of points){
             let box = new THREE.Mesh(
               new THREE.BoxGeometry(0.5, 0.5, 0.5),
@@ -555,8 +557,20 @@ export default class Test {
             box?.position.set(item.x, item.y, item.z);
 
             _this.scene.add(box);
-            meshList.push(box)
+            meshList.push(box);
           }
+          curvePath = new THREE.CurvePath();
+          meshList.reduce((box1, box2) => {
+            let p1 = box1.position,
+                p2 = box2.position;
+              
+            const lineCurve = new THREE.LineCurve3(p1, p2);
+            curvePath.add(lineCurve);
+            return box2;
+          })
+          
+          window.addEventListener("mousedown", rightclick);
+
           dragControls = new DragControls(
             meshList,
             this.camera,
@@ -564,6 +578,13 @@ export default class Test {
           );
           dragControls.addEventListener("dragstart", dragstart);
           dragControls.addEventListener("dragend", dragend);
+          dragControls.addEventListener("drag", drag);
+          
+          line = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints(curvePath.getPoints(50) as Array<THREE.Vector3>),
+            new THREE.LineBasicMaterial({ color: 0xff0000 })
+          );;
+          this.scene.add(line);
         }
         Object.assign(window, {addPath})
         
