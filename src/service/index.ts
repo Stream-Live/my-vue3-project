@@ -2,7 +2,7 @@
  * @Author: Wjh
  * @Date: 2022-12-08 20:27:19
  * @LastEditors: Wjh
- * @LastEditTime: 2023-02-08 17:24:04
+ * @LastEditTime: 2023-02-09 17:13:53
  * @FilePath: \my-vue3-project\src\service\index.ts
  * @Description:
  *
@@ -441,10 +441,76 @@ export default class Test {
       // 拾取路径的点坐标
       {
         let meshList: Array<THREE.Mesh> = [];
+        let spriteList: Array<THREE.Sprite> = [];
+        let lengthSprite: THREE.Sprite | null;
         let dragControls: DragControls;
         let boxColor = new THREE.Color("#0000ff");
         let curvePath = new THREE.CurvePath();
         let line: THREE.Line | null;
+        let group = new THREE.Group();
+
+        const getCanvasByDistance = (text: string) => {
+          const fontSize = 30;
+
+          // 绘制canvas
+          let canvas = document.createElement("canvas");
+          let ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+          ctx.scale(window.devicePixelRatio , window.devicePixelRatio );
+          const setCanvasSize = (w: number, h: number) => {
+            canvas.width = w;
+            canvas.height = h;
+            canvas.style.width = `${canvas.width}px`;
+            canvas.style.height = `${canvas.height}px`;
+          }
+          let textWidth = ctx.measureText(text).width * 2;
+          setCanvasSize(textWidth * 2, textWidth);
+          
+          // 矩形背景
+          ctx.fillStyle = '#333333';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          // 文字
+          ctx.font = `${fontSize}px DIN,sans-serif`;
+          ctx.fillStyle = "#ffffff";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(text,textWidth, textWidth/2);
+
+          return {canvas, scaleY: (1 / (textWidth * 2)) * canvas.height};
+        }
+
+        const updateSprite = (sprite: THREE.Sprite, p1: THREE.Vector3, p2: THREE.Vector3) => {
+
+          // 获取中心点和文字内容
+          let centerP = new THREE.Vector3((p1.x+p2.x)/2, (p1.y+p2.y)/2, (p1.z+p2.z)/2);
+          const text = `${p1.distanceTo(p2).toFixed(2)}米`;
+          
+          // 绘制canvas
+          let {canvas, scaleY} = getCanvasByDistance(text);
+          
+          // 绘制精灵
+          sprite.material.map = new THREE.CanvasTexture(canvas);
+          sprite.position.copy(centerP);
+          sprite.scale.y = scaleY;
+
+        }
+
+        const updateLengthSprite = () => {
+          // 计算总长度
+          let total = 0;
+          for(let i=0; i< meshList.length-1; i++){
+            let p1 = meshList[i].position,
+                p2 = meshList[i+1].position;
+            total += (+p1.distanceTo(p2).toFixed(2));
+          }
+          // 绘制canvas
+          let {canvas, scaleY} = getCanvasByDistance(`${total.toFixed(2)}米`);
+          // 绘制精灵
+          lengthSprite!.material.map = new THREE.CanvasTexture(canvas);
+          let pos = meshList[meshList.length-1].position;
+          lengthSprite!.position.set(pos.x, pos.y+0.7, pos.z);
+          lengthSprite!.scale.y = scaleY;
+        }
 
         let dragstart = (event: any) => {
           this.controls.enabled = false;
@@ -458,10 +524,19 @@ export default class Test {
         };
 
         let drag = () => {
-          // 显示线条的时候更新线条
+          // 更新线条和文字内容
           if (line) {
-            const points = curvePath.getPoints(50) as Array<THREE.Vector3>;
+            const points = curvePath.getPoints(curvePath.getLength()) as Array<THREE.Vector3>;
             line.geometry.setFromPoints(points);
+            
+            for(let i=0; i< meshList.length-1; i++){
+              let p1 = meshList[i].position,
+                  p2 = meshList[i+1].position;
+              
+              spriteList[i].position.set((p1.x+p2.x)/2, (p1.y+p2.y)/2, (p1.z+p2.z)/2);
+              updateSprite(spriteList[i], p1, p2);
+            }
+            updateLengthSprite();
           }
         }
 
@@ -469,6 +544,7 @@ export default class Test {
         const rightclick = (e: any) => {
           if (e.button == 2) {
 
+            // 添加一个点
             let box = new THREE.Mesh(
               new THREE.BoxGeometry(0.5, 0.5, 0.5),
               new THREE.MeshBasicMaterial({ color: boxColor })
@@ -478,21 +554,36 @@ export default class Test {
             const y = e.clientY;
             box.position.copy(this.screenPointToThreeCoords(x, y))
 
-            this.scene.add(box);
+            group.add(box);
             meshList.push(box);
+            box.name = '点'+meshList.length;
             console.log(meshList.map(item => item.position));
 
             // 添加一条线
             let len = meshList.length;
-            
             if(len > 1){
               let p1 = meshList[len-2].position,
                 p2 = meshList[len-1].position;
               
+              // 添加一条线
               const lineCurve = new THREE.LineCurve3(p1, p2);
               curvePath.add(lineCurve);
-              const points = curvePath.getPoints(50) as Array<THREE.Vector3>;
+              const points = curvePath.getPoints(curvePath.getLength()) as Array<THREE.Vector3>;
               line!.geometry.setFromPoints(points);
+              line!.frustumCulled = false;  // 防止对线进行视锥体剔除
+
+              // 添加每条线上的精灵
+              let sprite = new THREE.Sprite(new THREE.SpriteMaterial());
+              updateSprite(sprite, p1, p2);
+              spriteList.push(sprite);
+              group.add(sprite);
+
+              // 添加总长度精灵
+              if(!lengthSprite){
+                lengthSprite = new THREE.Sprite(new THREE.SpriteMaterial());
+                group.add(lengthSprite);
+              }
+              updateLengthSprite();
             }
           }
         };
@@ -515,8 +606,11 @@ export default class Test {
           line = new THREE.Line(
             new THREE.BufferGeometry(),
             new THREE.LineBasicMaterial({ color: 0xff0000 })
-          );;
-          this.scene.add(line);
+          );
+          group = new THREE.Group();
+          group.name = '路径绘制组'
+          this.scene.add(group);
+          group.add(line);
         };
         const end = () => {
           meshList.forEach((item) => item.removeFromParent());
@@ -530,8 +624,10 @@ export default class Test {
 
           line?.removeFromParent();
           line?.clear();
+          group.clear();
+          lengthSprite?.clear();
+          lengthSprite = null;
         };
-
 
         let line_switch_btn = document.createElement("button");
         line_switch_btn.innerHTML = "开始拾取路径点";
@@ -581,10 +677,11 @@ export default class Test {
           dragControls.addEventListener("drag", drag);
           
           line = new THREE.Line(
-            new THREE.BufferGeometry().setFromPoints(curvePath.getPoints(50) as Array<THREE.Vector3>),
+            new THREE.BufferGeometry().setFromPoints(curvePath.getPoints(curvePath.getLength()) as Array<THREE.Vector3>),
             new THREE.LineBasicMaterial({ color: 0xff0000 })
-          );;
-          this.scene.add(line);
+          );
+          this.scene.add(group);
+          group.add(line);
         }
         Object.assign(window, {addPath})
         
