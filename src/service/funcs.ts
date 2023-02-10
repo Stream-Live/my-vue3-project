@@ -19,7 +19,8 @@ import {
   computeLabelPosition,
   CreateFlywire,
   getGradientColors,
-  CreateWaterSpout
+  CreateWaterSpout,
+  MeasureDistance
 } from 'my-threejs-utils'
 import gsap from 'gsap'
 
@@ -72,7 +73,6 @@ export default class Floor {
 
     this.render();
 
-    // new Measure(this.renderer, this.scene, this.camera, this.controls).open();
   }
   async initScene() {
 
@@ -118,6 +118,20 @@ export default class Floor {
     this.addGradientColors();
 
     this.addWaterspout();
+
+    this.addMeasureDistance();
+  }
+
+  // 添加测距
+  addMeasureDistance(){
+
+    let obj = MeasureDistance({
+      renderer: this.renderer,
+      scene: this.scene,
+      camera: this.camera,
+      controls: this.controls
+    })
+    Object.assign(window, obj);
   }
 
   // 添加水柱
