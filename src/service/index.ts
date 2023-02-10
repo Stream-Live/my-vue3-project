@@ -2,7 +2,7 @@
  * @Author: Wjh
  * @Date: 2022-12-08 20:27:19
  * @LastEditors: Wjh
- * @LastEditTime: 2023-02-09 17:13:53
+ * @LastEditTime: 2023-02-10 10:34:09
  * @FilePath: \my-vue3-project\src\service\index.ts
  * @Description:
  *
@@ -24,6 +24,9 @@ import hdr_data from "@/service/assets/hdr/hdr";
 import { useStore } from "@/stores/index";
 import { Message } from "@arco-design/web-vue";
 import * as _ from 'lodash-es'
+import {
+  MeasureDistance
+} from 'my-threejs-utils'
 
 export default class Test {
   private renderer: THREE.WebGLRenderer;
@@ -98,7 +101,8 @@ export default class Test {
       controls: this.controls,
       THREE,
       composer: this.composer,
-      _
+      _,
+      renderer: this.renderer
     });
 
     this.render();
@@ -440,250 +444,27 @@ export default class Test {
 
       // 拾取路径的点坐标
       {
-        let meshList: Array<THREE.Mesh> = [];
-        let spriteList: Array<THREE.Sprite> = [];
-        let lengthSprite: THREE.Sprite | null;
-        let dragControls: DragControls;
-        let boxColor = new THREE.Color("#0000ff");
-        let curvePath = new THREE.CurvePath();
-        let line: THREE.Line | null;
-        let group = new THREE.Group();
-
-        const getCanvasByDistance = (text: string) => {
-          const fontSize = 30;
-
-          // 绘制canvas
-          let canvas = document.createElement("canvas");
-          let ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
-          ctx.scale(window.devicePixelRatio , window.devicePixelRatio );
-          const setCanvasSize = (w: number, h: number) => {
-            canvas.width = w;
-            canvas.height = h;
-            canvas.style.width = `${canvas.width}px`;
-            canvas.style.height = `${canvas.height}px`;
-          }
-          let textWidth = ctx.measureText(text).width * 2;
-          setCanvasSize(textWidth * 2, textWidth);
-          
-          // 矩形背景
-          ctx.fillStyle = '#333333';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          
-          // 文字
-          ctx.font = `${fontSize}px DIN,sans-serif`;
-          ctx.fillStyle = "#ffffff";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(text,textWidth, textWidth/2);
-
-          return {canvas, scaleY: (1 / (textWidth * 2)) * canvas.height};
-        }
-
-        const updateSprite = (sprite: THREE.Sprite, p1: THREE.Vector3, p2: THREE.Vector3) => {
-
-          // 获取中心点和文字内容
-          let centerP = new THREE.Vector3((p1.x+p2.x)/2, (p1.y+p2.y)/2, (p1.z+p2.z)/2);
-          const text = `${p1.distanceTo(p2).toFixed(2)}米`;
-          
-          // 绘制canvas
-          let {canvas, scaleY} = getCanvasByDistance(text);
-          
-          // 绘制精灵
-          sprite.material.map = new THREE.CanvasTexture(canvas);
-          sprite.position.copy(centerP);
-          sprite.scale.y = scaleY;
-
-        }
-
-        const updateLengthSprite = () => {
-          // 计算总长度
-          let total = 0;
-          for(let i=0; i< meshList.length-1; i++){
-            let p1 = meshList[i].position,
-                p2 = meshList[i+1].position;
-            total += (+p1.distanceTo(p2).toFixed(2));
-          }
-          // 绘制canvas
-          let {canvas, scaleY} = getCanvasByDistance(`${total.toFixed(2)}米`);
-          // 绘制精灵
-          lengthSprite!.material.map = new THREE.CanvasTexture(canvas);
-          let pos = meshList[meshList.length-1].position;
-          lengthSprite!.position.set(pos.x, pos.y+0.7, pos.z);
-          lengthSprite!.scale.y = scaleY;
-        }
-
-        let dragstart = (event: any) => {
-          this.controls.enabled = false;
-        };
-
-        let dragend = (event: any) => {
-          this.controls.enabled = true;
-          
-          console.log(meshList.map(item => item.position));
-          
-        };
-
-        let drag = () => {
-          // 更新线条和文字内容
-          if (line) {
-            const points = curvePath.getPoints(curvePath.getLength()) as Array<THREE.Vector3>;
-            line.geometry.setFromPoints(points);
-            
-            for(let i=0; i< meshList.length-1; i++){
-              let p1 = meshList[i].position,
-                  p2 = meshList[i+1].position;
-              
-              spriteList[i].position.set((p1.x+p2.x)/2, (p1.y+p2.y)/2, (p1.z+p2.z)/2);
-              updateSprite(spriteList[i], p1, p2);
-            }
-            updateLengthSprite();
-          }
-        }
-
-        // 右击新增
-        const rightclick = (e: any) => {
-          if (e.button == 2) {
-
-            // 添加一个点
-            let box = new THREE.Mesh(
-              new THREE.BoxGeometry(0.5, 0.5, 0.5),
-              new THREE.MeshBasicMaterial({ color: boxColor })
-            );
-
-            const x = e.clientX;
-            const y = e.clientY;
-            box.position.copy(this.screenPointToThreeCoords(x, y))
-
-            group.add(box);
-            meshList.push(box);
-            box.name = '点'+meshList.length;
-            console.log(meshList.map(item => item.position));
-
-            // 添加一条线
-            let len = meshList.length;
-            if(len > 1){
-              let p1 = meshList[len-2].position,
-                p2 = meshList[len-1].position;
-              
-              // 添加一条线
-              const lineCurve = new THREE.LineCurve3(p1, p2);
-              curvePath.add(lineCurve);
-              const points = curvePath.getPoints(curvePath.getLength()) as Array<THREE.Vector3>;
-              line!.geometry.setFromPoints(points);
-              line!.frustumCulled = false;  // 防止对线进行视锥体剔除
-
-              // 添加每条线上的精灵
-              let sprite = new THREE.Sprite(new THREE.SpriteMaterial());
-              updateSprite(sprite, p1, p2);
-              spriteList.push(sprite);
-              group.add(sprite);
-
-              // 添加总长度精灵
-              if(!lengthSprite){
-                lengthSprite = new THREE.Sprite(new THREE.SpriteMaterial());
-                group.add(lengthSprite);
-              }
-              updateLengthSprite();
-            }
-          }
-        };
-
-        const start = () => {
-          meshList = [];
-
-          window.addEventListener("mousedown", rightclick);
-
-          dragControls = new DragControls(
-            meshList,
-            this.camera,
-            this.renderer.domElement
-          );
-          dragControls.addEventListener("dragstart", dragstart);
-          dragControls.addEventListener("dragend", dragend);
-          dragControls.addEventListener("drag", drag);
-          
-          curvePath = new THREE.CurvePath();
-          line = new THREE.Line(
-            new THREE.BufferGeometry(),
-            new THREE.LineBasicMaterial({ color: 0xff0000 })
-          );
-          group = new THREE.Group();
-          group.name = '路径绘制组'
-          this.scene.add(group);
-          group.add(line);
-        };
-        const end = () => {
-          meshList.forEach((item) => item.removeFromParent());
-
-          window.removeEventListener("mousedown", rightclick);
-
-          dragControls.removeEventListener("dragstart", dragstart);
-          dragControls.removeEventListener("dragend", dragend);
-          dragControls.removeEventListener("drag", drag);
-          dragControls.dispose();
-
-          line?.removeFromParent();
-          line?.clear();
-          group.clear();
-          lengthSprite?.clear();
-          lengthSprite = null;
-        };
-
+        
+        let obj = MeasureDistance({
+          renderer: this.renderer,
+          scene: this.scene,
+          camera: this.camera,
+          controls: this.controls,
+        })
         let line_switch_btn = document.createElement("button");
         line_switch_btn.innerHTML = "开始拾取路径点";
         utils_div.append(line_switch_btn);
         line_switch_btn.onclick = () => {
           if (line_switch_btn.innerHTML == "开始拾取路径点") {
             line_switch_btn.innerHTML = "结束拾取路径点";
-            start();
+            obj.start();
           } else {
             line_switch_btn.innerHTML = "开始拾取路径点";
-            end();
+            obj.end();
           }
         };
 
-        // 根据点数组添加路径
-        const addPath = (points: Array<{x: number, y: number, z: number}>) => {
-          line_switch_btn.innerHTML = "结束拾取路径点";
-          for(let item of points){
-            let box = new THREE.Mesh(
-              new THREE.BoxGeometry(0.5, 0.5, 0.5),
-              new THREE.MeshLambertMaterial({ color: boxColor })
-            );
-            box?.position.set(item.x, item.y, item.z);
-
-            _this.scene.add(box);
-            meshList.push(box);
-          }
-          curvePath = new THREE.CurvePath();
-          meshList.reduce((box1, box2) => {
-            let p1 = box1.position,
-                p2 = box2.position;
-              
-            const lineCurve = new THREE.LineCurve3(p1, p2);
-            curvePath.add(lineCurve);
-            return box2;
-          })
-          
-          window.addEventListener("mousedown", rightclick);
-
-          dragControls = new DragControls(
-            meshList,
-            this.camera,
-            this.renderer.domElement
-          );
-          dragControls.addEventListener("dragstart", dragstart);
-          dragControls.addEventListener("dragend", dragend);
-          dragControls.addEventListener("drag", drag);
-          
-          line = new THREE.Line(
-            new THREE.BufferGeometry().setFromPoints(curvePath.getPoints(curvePath.getLength()) as Array<THREE.Vector3>),
-            new THREE.LineBasicMaterial({ color: 0xff0000 })
-          );
-          this.scene.add(group);
-          group.add(line);
-        }
-        Object.assign(window, {addPath})
+        Object.assign(window, {addPath: obj.addPath})
         
       }
 
