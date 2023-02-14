@@ -424,6 +424,7 @@ export default class Floor {
       radius: 0.5,
       divisions: 200,
       isClosed: false,
+      speed: 1
     });
     this.scene.add(obj.path);
     obj.start();
